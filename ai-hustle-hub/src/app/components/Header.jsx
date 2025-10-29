@@ -10,6 +10,12 @@ const Header = () => {
           <li><a href="#apps" className="hover:text-blue-600">Apps</a></li>
           <li><a href="#pricing" className="hover:text-blue-600">Pricing</a></li>
           <li><a href="#contact" className="hover:text-blue-600">Contact</a></li>
+          {/* Add this for your Task Manager page */}
+          <li>
+            <Link href="/task-manager" className="hover:text-blue-600">
+              Task Manager
+            </Link>
+          </li>
         </ul>
       </nav>
     </header>

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import AddTaskForm from "./TaskManager/AddTaskForm";
-import TaskList from "./TaskManager/TaskList";
-import FocusTimer from "./TaskManager/FocusTimer";
-import StreakTracker from "./TaskManager/StreakTracker";
-import ProModal from "./TaskManager/ProModal";
-import TaskFilters from "./TaskManager/TaskFilters";
-import ProgressBar from "./TaskManager/ProgressBar";
+import AddTaskForm from "./components/AddTaskForm";
+import TaskList from "./components/TaskList";
+import FocusTimer from "./components/FocusTimer";
+import StreakTracker from "./components/StreakTracker";
+import ProModal from "./components/ProModal";
+import TaskFilters from "./components/TaskFilters";
+import ProgressBar from "./components/ProgressBar";
 
 export default function TaskManagerPage() {
   const [tasks, setTasks] = useState([]);

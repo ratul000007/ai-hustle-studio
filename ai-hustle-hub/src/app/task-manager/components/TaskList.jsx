@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import ProgressBar from "@/app/task-manager/TaskManager/ProgressBar";
+import ProgressBar from "@/app/task-manager/components/ProgressBar";
 
 const TaskList = ({ tasks, setTasks, isPro, filter, sortBy }) => {
   const [editingId, setEditingId] = useState(null);

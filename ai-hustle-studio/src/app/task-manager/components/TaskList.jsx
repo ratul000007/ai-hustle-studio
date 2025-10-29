@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import ProgressBar from "@/app/task-manager/components/ProgressBar";
+import { motion, AnimatePresence } from "framer-motion";
+import ProgressBar from "./ProgressBar";
+import TaskDetailModal from "./TaskDetailModal";
 
 const TaskList = ({ tasks, setTasks, isPro, filter, sortBy }) => {
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
+  const [modalTask, setModalTask] = useState(null);
 
-  // Auto-generate recurring tasks for Pro users
+  // Auto-generate recurring tasks
   useEffect(() => {
     if (!isPro) return;
     const today = new Date().toISOString().split("T")[0];
@@ -94,105 +97,109 @@ const TaskList = ({ tasks, setTasks, isPro, filter, sortBy }) => {
           const totalSubtasks = task.subtasks?.length || 0;
 
           return (
-            <li
-              key={task.id}
-              className={`p-3 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex flex-col md:flex-row md:justify-between transition transform hover:scale-[1.01] border-2 ${
-                isOverdue ? "border-red-400" : "border-transparent"
-              }`}
-            >
-              <div className="flex flex-col md:flex-row md:items-start gap-3 md:gap-6 w-full">
-                <div className="flex items-center gap-2 w-full">
-                  <input
-                    type="checkbox"
-                    checked={task.completed}
-                    onChange={() => handleToggle(task)}
-                    className="w-5 h-5 cursor-pointer"
-                  />
-                  {editingId === task.id ? (
+            <AnimatePresence key={task.id}>
+              <motion.li
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className={`p-3 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex flex-col md:flex-row md:justify-between transition transform hover:scale-[1.02] border-2 ${
+                  isOverdue ? "border-red-400" : "border-transparent"
+                }`}
+              >
+                <div className="flex flex-col md:flex-row md:items-start gap-3 md:gap-6 w-full cursor-pointer" onClick={() => setModalTask(task)}>
+                  <div className="flex items-center gap-2 w-full">
                     <input
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      className="border px-2 py-1 rounded dark:bg-gray-700 dark:text-white w-full"
+                      type="checkbox"
+                      checked={task.completed}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleToggle(task);
+                      }}
+                      className="w-5 h-5 cursor-pointer"
                     />
-                  ) : (
-                    <span
-                      className={`font-medium text-sm md:text-base ${
-                        task.completed ? "line-through text-gray-400" : "text-gray-900 dark:text-gray-100"
-                      }`}
-                    >
-                      {task.text}
-                    </span>
-                  )}
-                </div>
-
-                {/* Badges */}
-                <div className="flex gap-2 flex-wrap mt-1 md:mt-0">
-                  {task.category && <span className="bg-purple-200 text-purple-800 text-xs px-2 py-0.5 rounded">{task.category}</span>}
-                  {task.priority && <span className="bg-blue-200 text-blue-800 text-xs px-2 py-0.5 rounded">{task.priority}</span>}
-                  {task.recurring && <span className="bg-green-200 text-green-800 text-xs px-2 py-0.5 rounded">{task.recurring}</span>}
-                  {task.date && (
-                    <span className={`text-xs px-2 py-0.5 rounded ${isOverdue ? "bg-red-200 text-red-800" : "bg-yellow-200 text-yellow-800"}`}>
-                      {task.date}
-                    </span>
-                  )}
-                  {task.time && <span className="text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200">{task.time}</span>}
-                </div>
-
-                {/* Subtasks */}
-                {isPro && task.subtasks && task.subtasks.length > 0 && (
-                  <div className="w-full mt-2 md:mt-0 flex flex-col gap-1">
-                    <ul className="pl-4 flex flex-col gap-1">
-                      {task.subtasks.map((sub, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={sub.completed || false}
-                            onChange={() => handleToggle(task, i)}
-                            className="w-4 h-4 cursor-pointer"
-                          />
-                          <span className={`text-sm ${sub.completed ? "line-through text-gray-400" : "text-gray-700 dark:text-gray-200"}`}>
-                            {sub.text || "Subtask"}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="mt-1">
-                      <ProgressBar completed={completedSubtasks} total={totalSubtasks} />
-                    </div>
+                    {editingId === task.id ? (
+                      <input
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        className="border px-2 py-1 rounded dark:bg-gray-700 dark:text-white w-full"
+                      />
+                    ) : (
+                      <span
+                        className={`font-medium text-sm md:text-base ${
+                          task.completed ? "line-through text-gray-400" : "text-gray-900 dark:text-gray-100"
+                        }`}
+                      >
+                        {task.text}
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Actions */}
-              <div className="flex gap-2 mt-3 md:mt-0">
-                {editingId === task.id ? (
-                  <button
-                    onClick={() => handleSave(task.id)}
-                    className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition"
-                  >
-                    Save
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => handleEdit(task)}
-                      className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
-                    >
-                      Edit
+                  {/* Badges */}
+                  <div className="flex gap-2 flex-wrap mt-1 md:mt-0">
+                    {task.category && <span className="bg-purple-200 text-purple-800 text-xs px-2 py-0.5 rounded">{task.category}</span>}
+                    {task.priority && <span className="bg-blue-200 text-blue-800 text-xs px-2 py-0.5 rounded">{task.priority}</span>}
+                    {task.recurring && <span className="bg-green-200 text-green-800 text-xs px-2 py-0.5 rounded">{task.recurring}</span>}
+                    {task.date && (
+                      <span className={`text-xs px-2 py-0.5 rounded ${isOverdue ? "bg-red-200 text-red-800" : "bg-yellow-200 text-yellow-800"}`}>
+                        {task.date}
+                      </span>
+                    )}
+                    {task.time && <span className="text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200">{task.time}</span>}
+                  </div>
+
+                  {/* Subtasks */}
+                  {isPro && task.subtasks && task.subtasks.length > 0 && (
+                    <div className="w-full mt-2 md:mt-0 flex flex-col gap-1">
+                      <ul className="pl-4 flex flex-col gap-1">
+                        {task.subtasks.map((sub, i) => (
+                          <li key={i} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={sub.completed || false}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleToggle(task, i);
+                              }}
+                              className="w-4 h-4 cursor-pointer"
+                            />
+                            <span className={`text-sm ${sub.completed ? "line-through text-gray-400" : "text-gray-700 dark:text-gray-200"}`}>
+                              {sub.text || "Subtask"}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-1">
+                        <ProgressBar completed={completedSubtasks} total={totalSubtasks} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 mt-3 md:mt-0">
+                  {editingId === task.id ? (
+                    <button onClick={() => handleSave(task.id)} className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition">
+                      Save
                     </button>
-                    <button
-                      onClick={() => handleDelete(task.id)}
-                      className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition"
-                    >
-                      Delete
-                    </button>
-                  </>
-                )}
-              </div>
-            </li>
+                  ) : (
+                    <>
+                      <button onClick={() => handleEdit(task)} className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 transition">
+                        Edit
+                      </button>
+                      <button onClick={() => handleDelete(task.id)} className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition">
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              </motion.li>
+            </AnimatePresence>
           );
         })}
       </ul>
+
+      {/* Task Modal */}
+      {modalTask && <TaskDetailModal task={modalTask} onClose={() => setModalTask(null)} />}
     </div>
   );
 };

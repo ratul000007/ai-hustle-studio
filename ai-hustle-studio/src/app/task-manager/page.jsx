@@ -5,9 +5,11 @@ import AddTaskForm from "./components/AddTaskForm";
 import TaskList from "./components/TaskList";
 import FocusTimer from "./components/FocusTimer";
 import StreakTracker from "./components/StreakTracker";
-import ProModal from "./components/ProModal";
 import TaskFilters from "./components/TaskFilters";
 import ProgressBar from "./components/ProgressBar";
+import CalendarView from "./components/CalendarView";
+import ProModal from "./components/ProModal";
+import { v4 as uuidv4 } from "uuid";
 
 export default function TaskManagerPage() {
   const [tasks, setTasks] = useState([]);
@@ -34,6 +36,20 @@ export default function TaskManagerPage() {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode, tasks]);
 
+  // Notifications for overdue tasks
+  useEffect(() => {
+    if (!("Notification" in window)) return;
+    Notification.requestPermission();
+    tasks.forEach(task => {
+      if (task.dueDate && !task.completed) {
+        const due = new Date(task.dueDate);
+        if (due < new Date()) {
+          new Notification("Task Overdue!", { body: task.text });
+        }
+      }
+    });
+  }, [tasks]);
+
   // Compute progress
   const completedTasks = tasks.filter(t => t.completed).length;
   const totalTasks = tasks.length;
@@ -48,8 +64,12 @@ export default function TaskManagerPage() {
       return true;
     })
     .sort((a, b) => {
-      if (sortBy === "priority") return (b.priority?.length || 0) - (a.priority?.length || 0);
-      if (sortBy === "date") return new Date(a.date || 0) - new Date(b.date || 0);
+      if (sortBy === "priority") {
+        const p = { high: 3, medium: 2, low: 1 };
+        return (p[b.priority] || 0) - (p[a.priority] || 0);
+      }
+      if (sortBy === "date") return new Date(a.dueDate || 0) - new Date(b.dueDate || 0);
+      if (sortBy === "overdue") return new Date(a.dueDate || 0) - new Date(b.dueDate || 0);
       return 0;
     });
 
@@ -58,11 +78,11 @@ export default function TaskManagerPage() {
     if (!isProUser) return setShowProModal(true);
     const csvContent =
       "data:text/csv;charset=utf-8," +
-      ["Task,Category,Tags,Priority,Recurring,Date,Completed"]
+      ["Task,Category,Tags,Priority,Recurring,DueDate,Subtasks,Completed"]
         .concat(
           tasks.map(
             (t) =>
-              `${t.text},${t.category || ""},${t.tags?.join(";") || ""},${t.priority || ""},${t.recurring || ""},${t.date || ""},${t.completed || false}`
+              `${t.text},${t.category || ""},${t.tags?.join(";") || ""},${t.priority || ""},${t.recurring || ""},${t.dueDate || ""},"${t.subtasks?.map(st => st.text).join(";") || ""}",${t.completed || false}`
           )
         )
         .join("\n");
@@ -75,10 +95,16 @@ export default function TaskManagerPage() {
     document.body.removeChild(link);
   };
 
+  // Add a new task
+  const handleAddTask = (task) => {
+    const newTask = { ...task, id: uuidv4(), createdAt: new Date().toISOString() };
+    setTasks([...tasks, newTask]);
+  };
+
   return (
     <div className="min-h-screen py-16 px-4 bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Header */}
-      <div className="max-w-md mx-auto flex justify-between items-center mb-6">
+      <div className="max-w-3xl mx-auto flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
           AI Hustle Task Manager
         </h1>
@@ -99,7 +125,7 @@ export default function TaskManagerPage() {
       </div>
 
       {/* Search */}
-      <div className="max-w-md mx-auto mb-4">
+      <div className="max-w-3xl mx-auto mb-4">
         <input
           type="text"
           value={search}
@@ -110,7 +136,7 @@ export default function TaskManagerPage() {
       </div>
 
       {/* Filters & Sorting */}
-      <div className="max-w-md mx-auto mb-4 flex flex-col gap-2">
+      <div className="max-w-3xl mx-auto mb-4 flex flex-col gap-2">
         <TaskFilters filter={filter} setFilter={setFilter} />
         <div className="flex justify-between gap-2">
           <select
@@ -121,6 +147,7 @@ export default function TaskManagerPage() {
             <option value="none">Sort: None</option>
             <option value="priority">Sort: Priority</option>
             <option value="date">Sort: Due Date</option>
+            <option value="overdue">Sort: Overdue</option>
           </select>
           <button
             onClick={handleExportCSV}
@@ -132,38 +159,32 @@ export default function TaskManagerPage() {
       </div>
 
       {/* Progress Bar */}
-      <div className="max-w-md mx-auto mb-4">
+      <div className="max-w-3xl mx-auto mb-4">
         <ProgressBar progress={progressPercent} />
       </div>
 
+      {/* Calendar View */}
+      <div className="max-w-3xl mx-auto mb-6">
+        <CalendarView tasks={tasks} />
+      </div>
+
       {/* Add Task Form */}
-      <div className="max-w-md mx-auto mb-6">
-        <AddTaskForm
-          onAdd={(task) => setTasks([...tasks, task])}
-          isPro={isProUser}
-          onShowPro={() => setShowProModal(true)}
-        />
+      <div className="max-w-3xl mx-auto mb-6">
+        <AddTaskForm onAdd={handleAddTask} isPro={isProUser} onShowPro={() => setShowProModal(true)} />
       </div>
 
       {/* Task List */}
-      <div className="max-w-md mx-auto mb-6">
-        <TaskList
-          tasks={displayedTasks}
-          setTasks={setTasks}
-          isPro={isProUser}
-          filter={filter}
-          sortBy={sortBy}
-          onShowPro={() => setShowProModal(true)}
-        />
+      <div className="max-w-3xl mx-auto mb-6">
+        <TaskList tasks={displayedTasks} setTasks={setTasks} isPro={isProUser} filter={filter} sortBy={sortBy} onShowPro={() => setShowProModal(true)} />
       </div>
 
       {/* Focus Timer */}
-      <div className="max-w-md mx-auto mb-6">
+      <div className="max-w-3xl mx-auto mb-6">
         <FocusTimer isPro={isProUser} onShowPro={() => setShowProModal(true)} />
       </div>
 
       {/* Streak Tracker */}
-      <div className="max-w-md mx-auto mb-6">
+      <div className="max-w-3xl mx-auto mb-6">
         <StreakTracker tasks={tasks} isPro={isProUser} onShowPro={() => setShowProModal(true)} />
       </div>
 
@@ -172,4 +193,3 @@ export default function TaskManagerPage() {
     </div>
   );
 }
-  

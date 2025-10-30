@@ -1,65 +1,69 @@
 "use client";
 
 import { useState } from "react";
-import AddTaskForm from "./components/AddTaskForm";
-import TaskList from "./components/TaskList";
+import { useTasks } from "@/context/TaskContext"; // ✅ shared context
 import ProgressBar from "./components/ProgressBar";
 import CalendarView from "./components/CalendarView";
 import StreakTracker from "./components/StreakTracker";
+import TaskList from "./components/TaskList";
 import { v4 as uuidv4 } from "uuid";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-export default function DashboardPage({ tasks = [] }) {
+export default function DashboardPage() {
+  const { tasks, addTask, toggleComplete } = useTasks(); // ✅ from context
   const today = new Date().toISOString().split("T")[0];
+
   const [search, setSearch] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
-  const [tasksState, setTasksState] = useState(tasks);
+  const [selectedDate, setSelectedDate] = useState(today);
 
-  // Today's Tasks
-  const todaysTasks = tasksState.filter((t) => t.date === today);
-  const upcomingTasks = tasksState
+  // --- Derived Data ---
+  const todaysTasks = tasks.filter((t) => t.date === selectedDate);
+  const upcomingTasks = tasks
     .filter((t) => t.date && t.date > today)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
-  const completedTasks = tasksState.filter((t) => t.completed).length;
-  const totalTasks = tasksState.length;
+  const completedTasks = tasks.filter((t) => t.completed).length;
+  const totalTasks = tasks.length;
   const progressPercent = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-  // Quick Add Task
+  // --- Quick Add ---
   const handleQuickAdd = () => {
     if (!newTaskText.trim()) return;
     const newTask = {
       id: uuidv4(),
       text: newTaskText.trim(),
-      date: today,
+      date: selectedDate,
       completed: false,
-      category: "Other",
+      category: "General",
       priority: "medium",
       recurring: "none",
       subtasks: [],
       tags: [],
       notes: "",
     };
-    setTasksState([...tasksState, newTask]);
+    addTask(newTask); // ✅ global update
     setNewTaskText("");
   };
 
-  // Pie chart data for task stats by category
-  const categoriesData = [
-    ...new Map(tasksState.map((t) => [t.category || "Other", t])).values(),
-  ].map((t) => ({
-    name: t.category || "Other",
-    value: tasksState.filter((task) => task.category === t.category).length,
+  // --- Pie Chart Data ---
+  const categoryCount = tasks.reduce((acc, t) => {
+    const cat = t.category || "Other";
+    acc[cat] = (acc[cat] || 0) + 1;
+    return acc;
+  }, {});
+  const categoriesData = Object.keys(categoryCount).map((key) => ({
+    name: key,
+    value: categoryCount[key],
   }));
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#A020F0", "#E91E63"];
 
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
-
-  // Filtered Today's Tasks
-  const filteredTodaysTasks = todaysTasks.filter((t) =>
+  // --- Filtered Tasks ---
+  const filteredTasks = todaysTasks.filter((t) =>
     t.text.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto px-4 py-10">
+    <div className="space-y-6 max-w-6xl mx-auto px-4 py-10">
 
       {/* Header + Quick Add */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -69,7 +73,7 @@ export default function DashboardPage({ tasks = [] }) {
             type="text"
             value={newTaskText}
             onChange={(e) => setNewTaskText(e.target.value)}
-            placeholder="Quick add task..."
+            placeholder={`Quick add for ${selectedDate}...`}
             className="border px-3 py-2 rounded-md w-full md:w-64 dark:bg-gray-700 dark:text-white"
             onKeyDown={(e) => e.key === "Enter" && handleQuickAdd()}
           />
@@ -82,19 +86,19 @@ export default function DashboardPage({ tasks = [] }) {
         </div>
       </div>
 
-      {/* Search Today's Tasks */}
+      {/* Search Input */}
       <input
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search today's tasks..."
+        placeholder={`Search tasks for ${selectedDate}...`}
         className="border px-3 py-2 rounded-md w-full md:w-64 dark:bg-gray-700 dark:text-white"
       />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-          <h2 className="font-semibold text-lg">Today’s Tasks</h2>
+          <h2 className="font-semibold text-lg">Tasks on {selectedDate}</h2>
           <p className="text-2xl font-bold mt-2">{todaysTasks.length}</p>
         </div>
         <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
@@ -107,14 +111,14 @@ export default function DashboardPage({ tasks = [] }) {
         </div>
       </div>
 
-      {/* Progress Section */}
+      {/* Progress */}
       <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
         <h2 className="font-semibold mb-2">Overall Progress</h2>
         <ProgressBar progress={progressPercent} />
       </div>
 
       {/* Pie Chart */}
-      {tasksState.length > 0 && (
+      {categoriesData.length > 0 && (
         <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
           <h2 className="font-semibold mb-3">Tasks by Category</h2>
           <ResponsiveContainer width="100%" height={200}>
@@ -140,28 +144,27 @@ export default function DashboardPage({ tasks = [] }) {
         </div>
       )}
 
-      {/* Mini Calendar */}
+      {/* Calendar (now interactive!) */}
       <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
         <h2 className="font-semibold mb-3">Calendar</h2>
-        <CalendarView tasks={tasksState} />
+        <CalendarView
+          tasks={tasks}
+          selectedDate={selectedDate}
+          onDateSelect={(date) => setSelectedDate(date)} // ✅ now clickable
+        />
       </div>
 
-      {/* Today's Tasks List */}
+      {/* Tasks List */}
       <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-        <h2 className="font-semibold mb-3">Today’s Tasks</h2>
-        {filteredTodaysTasks.length > 0 ? (
-          <TaskList
-            tasks={filteredTodaysTasks}
-            setTasks={setTasksState}
-            isPro={false}
-            filter="all"
-          />
+        <h2 className="font-semibold mb-3">Tasks for {selectedDate}</h2>
+        {filteredTasks.length > 0 ? (
+          <TaskList tasks={filteredTasks} onToggleComplete={toggleComplete} />
         ) : (
-          <p className="text-gray-500">No tasks scheduled for today 🎉</p>
+          <p className="text-gray-500">No tasks scheduled 🎉</p>
         )}
       </div>
 
-      {/* Upcoming Tasks Preview */}
+      {/* Upcoming Preview */}
       {upcomingTasks.length > 0 && (
         <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
           <h2 className="font-semibold mb-3">Upcoming Tasks</h2>
@@ -181,7 +184,7 @@ export default function DashboardPage({ tasks = [] }) {
 
       {/* Streak Tracker */}
       <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-        <StreakTracker tasks={tasksState} isPro={false} onShowPro={() => {}} />
+        <StreakTracker tasks={tasks} />
       </div>
     </div>
   );

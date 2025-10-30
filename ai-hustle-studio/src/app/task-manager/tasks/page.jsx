@@ -19,6 +19,7 @@ export default function TaskManagerPage() {
   const [filter, setFilter] = useState("all");
   const [sortBy, setSortBy] = useState("none");
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("tasks"); // tabs: tasks, calendar, focus, streak
 
   // Load saved tasks & dark mode
   useEffect(() => {
@@ -57,7 +58,7 @@ export default function TaskManagerPage() {
 
   // Filter, sort & search
   const displayedTasks = tasks
-    .filter((task) => {
+    .filter(task => {
       if (filter === "completed" && !task.completed) return false;
       if (filter === "pending" && task.completed) return false;
       if (search && !task.text.toLowerCase().includes(search.toLowerCase())) return false;
@@ -81,7 +82,7 @@ export default function TaskManagerPage() {
       ["Task,Category,Tags,Priority,Recurring,DueDate,Subtasks,Completed"]
         .concat(
           tasks.map(
-            (t) =>
+            t =>
               `${t.text},${t.category || ""},${t.tags?.join(";") || ""},${t.priority || ""},${t.recurring || ""},${t.dueDate || ""},"${t.subtasks?.map(st => st.text).join(";") || ""}",${t.completed || false}`
           )
         )
@@ -104,7 +105,7 @@ export default function TaskManagerPage() {
   return (
     <div className="min-h-screen py-16 px-4 bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Header */}
-      <div className="max-w-3xl mx-auto flex justify-between items-center mb-6">
+      <div className="max-w-3xl mx-auto flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
           AI Hustle Task Manager
         </h1>
@@ -117,75 +118,88 @@ export default function TaskManagerPage() {
           </button>
           <button
             onClick={() => setIsProUser(!isProUser)}
-            className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition"
+            className={`px-4 py-2 rounded-lg transition ${isProUser ? "bg-green-500 hover:bg-green-600 text-white" : "bg-yellow-500 hover:bg-yellow-600 text-white"}`}
           >
             {isProUser ? "Pro" : "Free"}
           </button>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="max-w-3xl mx-auto mb-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search tasks..."
-          className="border px-3 py-2 rounded-md w-full dark:bg-gray-700 dark:text-white"
-        />
-      </div>
-
-      {/* Filters & Sorting */}
-      <div className="max-w-3xl mx-auto mb-4 flex flex-col gap-2">
-        <TaskFilters filter={filter} setFilter={setFilter} />
-        <div className="flex justify-between gap-2">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="border px-2 py-1 rounded dark:bg-gray-700 dark:text-white flex-1"
-          >
-            <option value="none">Sort: None</option>
-            <option value="priority">Sort: Priority</option>
-            <option value="date">Sort: Due Date</option>
-            <option value="overdue">Sort: Overdue</option>
-          </select>
+      {/* Tabs */}
+      <div className="max-w-3xl mx-auto mb-4 flex gap-2">
+        {["tasks", "calendar", "focus", "streak"].map(tab => (
           <button
-            onClick={handleExportCSV}
-            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 px-3 py-1 rounded-lg transition ${activeTab === tab ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"}`}
           >
-            Export CSV
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
-        </div>
+        ))}
       </div>
 
-      {/* Progress Bar */}
-      <div className="max-w-3xl mx-auto mb-4">
-        <ProgressBar progress={progressPercent} />
-      </div>
+      {/* Conditional Rendering by Tab */}
+      <div className="max-w-3xl mx-auto flex flex-col gap-6">
+        {activeTab === "tasks" && (
+          <>
+            {/* Search & Filters */}
+            <div className="flex flex-col gap-2">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search tasks..."
+                className="border px-3 py-2 rounded-md w-full dark:bg-gray-700 dark:text-white"
+              />
+              <TaskFilters filter={filter} setFilter={setFilter} />
+              <div className="flex justify-between gap-2">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="border px-2 py-1 rounded dark:bg-gray-700 dark:text-white flex-1"
+                >
+                  <option value="none">Sort: None</option>
+                  <option value="priority">Sort: Priority</option>
+                  <option value="date">Sort: Due Date</option>
+                  <option value="overdue">Sort: Overdue</option>
+                </select>
+                <button
+                  onClick={handleExportCSV}
+                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                >
+                  Export CSV
+                </button>
+              </div>
+            </div>
 
-      {/* Add Task Form */}
-      <div className="max-w-3xl mx-auto mb-6">
-        <AddTaskForm onAdd={handleAddTask} isPro={isProUser} onShowPro={() => setShowProModal(true)} />
-      </div>
+            {/* Progress */}
+            <div>
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
+                <span>{completedTasks} completed</span>
+                <span>{totalTasks} total tasks</span>
+              </div>
+              <ProgressBar progress={progressPercent} />
+            </div>
 
-      {/* Task List */}
-      <div className="max-w-3xl mx-auto mb-6">
-        <TaskList tasks={displayedTasks} setTasks={setTasks} isPro={isProUser} filter={filter} sortBy={sortBy} onShowPro={() => setShowProModal(true)} />
-      </div>
+            {/* Add Task Form */}
+            <AddTaskForm onAdd={handleAddTask} isPro={isProUser} onShowPro={() => setShowProModal(true)} />
 
-      {/* Calendar View moved below Task List */}
-      <div className="max-w-3xl mx-auto mb-6">
-        <CalendarView tasks={tasks} />
-      </div>
+            {/* Task List */}
+            <TaskList tasks={displayedTasks} setTasks={setTasks} isPro={isProUser} filter={filter} sortBy={sortBy} onShowPro={() => setShowProModal(true)} />
+          </>
+        )}
 
-      {/* Focus Timer */}
-      <div className="max-w-3xl mx-auto mb-6">
-        <FocusTimer isPro={isProUser} onShowPro={() => setShowProModal(true)} />
-      </div>
+        {activeTab === "calendar" && (
+          <CalendarView tasks={tasks} isProUser={isProUser} onShowPro={() => setShowProModal(true)} />
+        )}
 
-      {/* Streak Tracker */}
-      <div className="max-w-3xl mx-auto mb-6">
-        <StreakTracker tasks={tasks} isPro={isProUser} onShowPro={() => setShowProModal(true)} />
+        {activeTab === "focus" && (
+          <FocusTimer isPro={isProUser} onShowPro={() => setShowProModal(true)} />
+        )}
+
+        {activeTab === "streak" && (
+          <StreakTracker tasks={tasks} isPro={isProUser} onShowPro={() => setShowProModal(true)} />
+        )}
       </div>
 
       {/* Pro Modal */}
